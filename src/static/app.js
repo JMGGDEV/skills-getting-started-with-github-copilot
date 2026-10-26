@@ -12,6 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Clear loading message
       activitiesList.innerHTML = "";
+      activitySelect.querySelectorAll("option:not(:first-child)").forEach((option) => option.remove());
 
       // Populate activities list
       Object.entries(activities).forEach(([name, details]) => {
@@ -30,7 +31,22 @@ document.addEventListener("DOMContentLoaded", () => {
             ${
               details.participants.length > 0
                 ? `<ul>${details.participants
-                    .map((participant) => `<li>${participant}</li>`)
+                    .map(
+                      (participant) => `
+                        <li>
+                          <span>${participant}</span>
+                          <button
+                            type="button"
+                            class="participant-remove"
+                            data-activity="${name}"
+                            data-email="${participant}"
+                            aria-label="Remove ${participant} from ${name}"
+                            title="Remove participant"
+                          >
+                            &times;
+                          </button>
+                        </li>`
+                    )
                     .join("")}</ul>`
                 : "<p class=\"no-participants\">No participants yet.</p>"
             }
@@ -88,6 +104,34 @@ document.addEventListener("DOMContentLoaded", () => {
       messageDiv.className = "error";
       messageDiv.classList.remove("hidden");
       console.error("Error signing up:", error);
+    }
+  });
+
+  activitiesList.addEventListener("click", async (event) => {
+    const removeButton = event.target.closest(".participant-remove");
+    if (!removeButton) {
+      return;
+    }
+
+    removeButton.disabled = true;
+    const activity = removeButton.dataset.activity;
+    const email = removeButton.dataset.email;
+
+    try {
+      const response = await fetch(
+        `/activities/${encodeURIComponent(activity)}/signup?email=${encodeURIComponent(email)}`,
+        { method: "DELETE" }
+      );
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.detail || "Failed to unregister participant");
+      }
+
+      await fetchActivities();
+    } catch (error) {
+      removeButton.disabled = false;
+      console.error("Error unregistering participant:", error);
     }
   });
 
